@@ -75,7 +75,7 @@ public:
     }
 };
 
-// Funzione per calcolare la convoluzione parallelizzata
+//Funzione per calcolare la convoluzione parallelizzata
 template <typename T>
 Matrix<T> convolution_parallel(const Matrix<T>& input, const Matrix<T>& kernel) {
     int kernel_rows = kernel.getRows();
@@ -88,18 +88,21 @@ Matrix<T> convolution_parallel(const Matrix<T>& input, const Matrix<T>& kernel) 
     int output_columns = input_columns - kernel_columns + 1;
 
     if (output_rows <= 0 || output_columns <= 0) {
-        throw invalid_argument("Kernel size is larger than input size.");
+        throw invalid_argument("Il kernel è maggiore della dimensione dell'input.");
     }
 
     Matrix<T> output(output_rows, output_columns);
 
-    int num_threads = 3;
-    int row_block_size = input_rows / 5;
-    int column_block_size = input_columns / 2;
+    //int num_threads = 10;
+    int num_threads = 4;
+    int row_block_size = input_rows / 2 ;
+    int column_block_size = input_columns /2 ; 
 
     // Gestione del resto
     int extra_rows = input_rows % 5;
+    cout << "extra_rows: " << extra_rows << endl;
     int extra_columns = input_columns % 2;
+    cout << "extra_columns: " << extra_columns << endl;
 
     #pragma omp parallel num_threads(num_threads)
     {
@@ -132,9 +135,42 @@ Matrix<T> convolution_parallel(const Matrix<T>& input, const Matrix<T>& kernel) 
     return output;
 }
 
+
+template <typename T>
+Matrix<T> convolution_sequential(const Matrix<T>& input, const Matrix<T>& kernel) {
+    int kernel_rows = kernel.getRows();
+    int kernel_columns = kernel.getColumns();
+
+    int input_rows = input.getRows();
+    int input_columns = input.getColumns();
+
+    int output_rows = input_rows - kernel_rows + 1;
+    int output_columns = input_columns - kernel_columns + 1;
+
+    if (output_rows <= 0 || output_columns <= 0) {
+        throw std::invalid_argument("Il kernel è maggiore della dimensione dell'input.");
+    }
+
+    Matrix<T> output(output_rows, output_columns);
+
+    for (int i = 0; i < output_rows; ++i) {
+        for (int j = 0; j < output_columns; ++j) {
+            T sum = 0;
+            for (int ki = 0; ki < kernel_rows; ++ki) {
+                for (int kj = 0; kj < kernel_columns; ++kj) {
+                    sum += input.Get_Value(i + ki, j + kj) * kernel.Get_Value(ki, kj);
+                }
+            }
+            output.Set_Matrix(i, j, sum);
+        }
+    }
+
+    return output;
+}
+
 int main() {
     // Leggi la matrice di input e il kernel dai file
-    int input_size = 10; // Sostituire con la dimensione effettiva della matrice di input
+    int input_size = 10; 
     Matrix<double> input(input_size, input_size);  // Matrice di input quadrata
     Matrix<double> kernel(4, 4); // Kernel 4x4
 
@@ -152,7 +188,8 @@ int main() {
     kernel.printToFile("kernel_matrix.txt");
 
     // Esegui la convoluzione parallelizzata
-    Matrix<double> output_parallel = convolution_parallel(input, kernel);
+    //Matrix<double> output_parallel = convolution_parallel(input, kernel);
+    Matrix<double> output_parallel = convolution_sequential(input, kernel);
     cout << "Output Matrix (Parallel):" << endl;
     output_parallel.printToFile("output_parallel.txt");
 
