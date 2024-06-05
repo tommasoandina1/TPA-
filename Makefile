@@ -1,7 +1,7 @@
-CC = g++-14
-CFLAGS = -std=c++11 -fopenmp
+CC = g++
+CFLAGS = -std=c++11
 TARGET = ciao
-SRC = matrix.cpp
+SRC = lol.cpp
 
 all: $(TARGET)
 
