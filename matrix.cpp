@@ -209,24 +209,28 @@ int main() {
     end_s = omp_get_wtime();
     printf("Tempo sequenziale: %g\n", (end_s-start_s)/input_size);
 
-    //Parallelo
+    // Parallelo
     double start_p, end_p;
     start_p = omp_get_wtime();
-    
-    for (size_t i = 0; i < 100; i++)
+
+    #pragma omp parallel num_threads(omp_get_max_threads())
     {
         Matrix<double> input_par(input_size, input_size);
         Matrix<double> kernel_par(4, 4); 
         input_par.readFromFile("matrix.txt");
         kernel_par.readFromFile("kernel.txt");
-        Matrix<double> output_par = convolution_sequential(input_par, kernel_par);
-        output_par.printToFile("output_par.txt");
-        
-    }
-    
-    end_p = omp_get_wtime();
-    printf("Tempo Parallelo: %g\n", (end_p-start_p)/input_size);
 
+        #pragma omp for
+        for (size_t i = 0; i < 100; i++)
+        {
+        Matrix<double> output_par = convolution_parallel(input_par, kernel_par); // Utilizza la versione parallela
+        output_par.printToFile("output_par.txt");
+        }
+    }
+
+    end_p = omp_get_wtime();
+
+printf("Tempo Parallelo: %g\n", (end_p-start_p)/input_size);
     // Verifica che i risultati siano uguali
     
     Matrix<double> output_seq(input_size, input_size);
