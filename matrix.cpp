@@ -1,199 +1,134 @@
-#include <iostream>
+#include "Matrix.h"
 #include <fstream>
-#include <vector>
-#include <stdexcept>
-#include <omp.h>
+#include <sstream>
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+
 using namespace std;
 
-// Classe matrice
 template <typename T>
-class Matrix {
-private:
-    vector<vector<T> > data;
-    int rows, cols;
-
-public:
-    Matrix(int r, int c) : rows(r), cols(c), data(r, vector<T>(c)) {}
-
-    int getRows() const { return rows; }
-    int getColumns() const { return cols; }
-    T Get_Value(int r, int c) const { return data[r][c]; }
-    void Set_Matrix(int r, int c, T value) { data[r][c] = value; }
-
-    bool readFromFile(const string &filename) {
-        ifstream file(filename.c_str());
-        if (!file.is_open()) {
-            cerr << "Could not open file " << filename << endl;
-            return false;
-        }
-
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < cols; ++j) {
-                if (!(file >> data[i][j])) {
-                    cerr << "Invalid data in file " << filename << endl;
-                    return false;
-                }
-            }
-        }
-
-        file.close();
-        return true;
-    }
-
-    bool writeToFile(const string &filename) const {
-        ofstream file(filename.c_str());
-        if (!file.is_open()) {
-            cerr << "Could not open file " << filename << endl;
-            return false;
-        }
-
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < cols; ++j) {
-                file << data[i][j] << " ";
-            }
-            file << endl;
-        }
-
-        file.close();
-        return true;
-    }
-
-    void printToFile(const string &filename) const {
-        ofstream file(filename.c_str());
-        if (!file.is_open()) {
-            cerr << "Could not open file " << filename << endl;
-        }
-
-        for (int i = 0; i < rows; ++i) {
-            for (int j = 0; j < cols; ++j) {
-                file << data[i][j] << " ";
-            }
-            file << endl;
-        }
-
-        file.close();
-    }
-};
-
-//Funzione per calcolare la convoluzione parallelizzata
-template <typename T>
-Matrix<T> convolution_parallel(const Matrix<T>& input, const Matrix<T>& kernel) {
-    int kernel_rows = kernel.getRows();
-    int kernel_columns = kernel.getColumns();
-
-    int input_rows = input.getRows();
-    int input_columns = input.getColumns();
-
-    int output_rows = input_rows - kernel_rows + 1;
-    int output_columns = input_columns - kernel_columns + 1;
-
-    if (output_rows <= 0 || output_columns <= 0) {
-        throw invalid_argument("Il kernel è maggiore della dimensione dell'input.");
-    }
-
-    Matrix<T> output(output_rows, output_columns);
-
-    //int num_threads = 10;
-    int num_threads = 4;
-    int row_block_size = input_rows / 2 ;
-    int column_block_size = input_columns /2 ; 
-
-    // Gestione del resto
-    int extra_rows = input_rows % 5;
-    cout << "extra_rows: " << extra_rows << endl;
-    int extra_columns = input_columns % 2;
-    cout << "extra_columns: " << extra_columns << endl;
-
-    #pragma omp parallel num_threads(num_threads)
-    {
-        int thread_id = omp_get_thread_num();
-        int start_row = (thread_id / 2) * row_block_size;
-        int end_row = start_row + row_block_size + (thread_id / 2 < extra_rows ? 1 : 0);
-        int start_col = (thread_id % 2) * column_block_size;
-        int end_col = start_col + column_block_size + (thread_id % 2 < extra_columns ? 1 : 0);
-
-        // Sovrapposizione per convoluzione
-        if (start_col > 0) start_col--;
-        if (end_col < input_columns) end_col++;
-
-        for (int i = start_row; i < end_row; ++i) {
-            for (int j = start_col; j < end_col; ++j) {
-                T sum = 0;
-                for (int ki = 0; ki < kernel_rows; ++ki) {
-                    for (int kj = 0; kj < kernel_columns; ++kj) {
-                        sum += input.Get_Value(i + ki, j + kj) * kernel.Get_Value(ki, kj);
-                    }
-                }
-                #pragma omp critical
-                {
-                    output.Set_Matrix(i - start_row, j - start_col, sum);
-                }
-            }
-        }
-    }
-
-    return output;
+Matrix<T>::Matrix(int rows, int columns) : rows(rows), columns(columns) {
+    data.resize(rows, vector<T>(columns, 0));
 }
 
+template <typename T>
+void Matrix<T>::Set_Matrix(int row, int column, T x) {
+    if (row >= 0 && row < rows && column >= 0 && column < columns) {
+        data[row][column] = x;
+    } else {
+        cout << "errore" << endl;
+    }
+}
 
 template <typename T>
-Matrix<T> convolution_sequential(const Matrix<T>& input, const Matrix<T>& kernel) {
-    int kernel_rows = kernel.getRows();
-    int kernel_columns = kernel.getColumns();
-
-    int input_rows = input.getRows();
-    int input_columns = input.getColumns();
-
-    int output_rows = input_rows - kernel_rows + 1;
-    int output_columns = input_columns - kernel_columns + 1;
-
-    if (output_rows <= 0 || output_columns <= 0) {
-        throw std::invalid_argument("Il kernel è maggiore della dimensione dell'input.");
+T Matrix<T>::Get_Value(int row, int column) const {
+    if (row >= 0 && row < rows && column >= 0 && column < columns) {
+        return data[row][column];
+    } else {
+        cout << "errore" << endl;
+        return T();
     }
+}
 
-    Matrix<T> output(output_rows, output_columns);
+template <typename T>
+void Matrix<T>::Print() const {
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < columns; ++j) {
+            cout << data[i][j] << " ";
+        }
+        cout << endl;
+    }
+}
 
-    for (int i = 0; i < output_rows; ++i) {
-        for (int j = 0; j < output_columns; ++j) {
-            T sum = 0;
-            for (int ki = 0; ki < kernel_rows; ++ki) {
-                for (int kj = 0; kj < kernel_columns; ++kj) {
-                    sum += input.Get_Value(i + ki, j + kj) * kernel.Get_Value(ki, kj);
-                }
-            }
-            output.Set_Matrix(i, j, sum);
+template <typename T>
+void Matrix<T>::readFromTerminal() {
+    cout << "Enter the elements of the matrix row by row:" << endl;
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < columns; ++j) {
+            cin >> data[i][j];
         }
     }
-
-    return output;
 }
 
-int main() {
-    // Leggi la matrice di input e il kernel dai file
-    int input_size = 10; 
-    Matrix<double> input(input_size, input_size);  // Matrice di input quadrata
-    Matrix<double> kernel(4, 4); // Kernel 4x4
-
-    if (!input.readFromFile("matrix.txt")) {
-        return EXIT_FAILURE;
-    }
-    if (!kernel.readFromFile("kernel.txt")) {
-        return EXIT_FAILURE;
+template <typename T>
+void Matrix<T>::readFromFile(const string& filename) {
+    ifstream file(filename);
+    if (!file.is_open()) {
+        cout << "Unable to open file" << endl;
+        return;
     }
 
-    cout << "Input Matrix:" << endl;
-    input.printToFile("input_matrix.txt");
+    string line;
+    int row = 0;
+    while (getline(file, line) && row < rows) {
+        stringstream ss(line);
+        for (int col = 0; col < columns; ++col) {
+            ss >> data[row][col];
+        }
+        row++;
+    }
 
-    cout << "Kernel Matrix:" << endl;
-    kernel.printToFile("kernel_matrix.txt");
+    if (row < rows) {
+        cout << "File contains less data than expected" << endl;
+    }
 
-    // Esegui la convoluzione parallelizzata
-    //Matrix<double> output_parallel = convolution_parallel(input, kernel);
-    Matrix<double> output_parallel = convolution_sequential(input, kernel);
-    cout << "Output Matrix (Parallel):" << endl;
-    output_parallel.printToFile("output_parallel.txt");
-
-    return EXIT_SUCCESS;
+    file.close();
 }
 
+template <typename T>
 
+Matrix<T> Matrix<T>::random_identity_matrix() {
+    srand(time(0));
+    int x = rand() % 100 + 1; // Numero casuale tra 1 e 100
+    Matrix identity(x, x);
+    for (int i = 0; i < x; ++i) {
+        identity.data[i][i] = 1.0;
+    }
+    return identity;
+}
+
+template <typename T>
+Matrix<T> Matrix<T>::sum_matrix(const Matrix& other) const {
+    if (rows != other.rows || columns != other.columns) {
+        cout << "Le dimensioni delle matrici non corrispondono per la somma" << endl;
+        return Matrix(0, 0);
+    }
+
+    Matrix result(rows, columns);
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < columns; ++j) {
+            result.data[i][j] = data[i][j] + other.data[i][j];
+        }
+    }
+    return result;
+}
+
+template <typename T>
+Matrix<T> Matrix<T>::dot_matrix(const Matrix& other) const {
+    if (columns != other.rows) {
+        cout << "errore di dimensioni" << endl;
+        return Matrix(0, 0);
+    }
+
+    Matrix result(rows, other.columns);
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < other.columns; ++j) {
+            for (int k = 0; k < other.rows; ++k) {
+                result.data[i][j] += data[i][k] * other.data[k][j];
+            }
+        }
+    }
+    return result;
+}
+
+template <typename T>
+Matrix<T> Matrix<T>::transpose() const {
+    Matrix result(columns, rows);
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < columns; ++j) {
+            result.data[j][i] = data[i][j];
+        }
+    }
+    return result;
+}
