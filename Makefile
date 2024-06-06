@@ -1,12 +1,13 @@
-CC = g++
-CFLAGS = -std=c++11
-TARGET = ciao
-SRC = lol.cpp
+all: ciao
 
-all: $(TARGET)
+ciao: matrix.cpp
+	g++-14 -fopenmp -o ciao matrix.cpp
 
-$(TARGET): $(SRC)
-    $(CC) $(CFLAGS) $^ -o $@
+run: ciao
+	./ciao
+
+run_and_clean: run clean
 
 clean:
-    rm -f $(TARGET)
+	rm -f ciao
+
